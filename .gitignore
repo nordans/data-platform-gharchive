@@ -1,1 +1,8 @@
-data/raw
+data/
+*.json.gz
+*.parquet
+logs/
+.venv/
+airflow/dags/__pycache__
+metabase-data
+postgres-data

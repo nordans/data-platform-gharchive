@@ -10,24 +10,36 @@ def main() -> None:
     spark = (
         SparkSession.builder
         .appName("gharchive-raw-to-bronze")
-        .master("local[*]")
+        .master("local[4]")
+        .config("spark.driver.memory", "4g")
+        .config("spark.executor.memory", "4g")
         .config("spark.sql.shuffle.partitions", "8")
+        .config("spark.ui.showConsoleProgress", "false")
+        .config("parquet.block.size", str(32 * 1024 * 1024))
         .getOrCreate()
     )
 
-    raw_df = spark.read.json(RAW_PATH)
-
-    bronze_df = (
-        raw_df
+    # Czytamy jako tekst, nie jako zagnieżdżony JSON.
+    # Każda linia GH Archive = jeden event JSON.
+    raw_df = (
+        spark.read.text(RAW_PATH)
+        .withColumnRenamed("value", "raw_json")
         .withColumn("source_file", input_file_name())
         .withColumn("ingested_at", current_timestamp())
         .withColumn("source_system", lit("gharchive"))
     )
 
-    bronze_df.write.mode("overwrite").parquet(BRONZE_PATH)
+    (
+        raw_df
+        .repartition(8)
+        .write
+        .mode("overwrite")
+        .option("compression", "snappy")
+        .parquet(BRONZE_PATH)
+    )
 
     print(f"Bronze saved to: {BRONZE_PATH}")
-    print(f"Rows written: {bronze_df.count()}")
+    print(f"Rows written: {raw_df.count()}")
 
     spark.stop()
 

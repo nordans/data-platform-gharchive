@@ -3,7 +3,7 @@ FROM apache/airflow:2.10.5-python3.11
 USER root
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends openjdk-17-jre-headless \
+    && apt-get install -y --no-install-recommends openjdk-17-jre-headless procps \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -18,4 +18,6 @@ COPY --chown=airflow:root pyproject.toml uv.lock /tmp/airflow-deps/
 
 WORKDIR /tmp/airflow-deps
 
-RUN uv sync --frozen --no-dev --system --no-install-project
+RUN uv sync --frozen --no-dev
+
+ENV PATH="/tmp/airflow-deps/.venv/bin:${PATH}"
