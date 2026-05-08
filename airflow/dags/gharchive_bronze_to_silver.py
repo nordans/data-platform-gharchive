@@ -41,4 +41,35 @@ with DAG(
         """,
     )
 
-    validate_bronze_input >> bronze_to_silver_spark >> validate_silver_output
+    record_pipeline_metrics = BashOperator(
+        task_id="record_pipeline_metrics",
+        bash_command="""
+        echo "Recording bronze_to_silver metrics..."
+
+        BRONZE_PATH="/opt/data-platform/data/bronze/gharchive/events/year=2025/month=01/day=01"
+        SILVER_PATH="/opt/data-platform/data/silver/gharchive/events/year=2025/month=01/day=01"
+
+        ROWS_INPUT=$(python /opt/data-platform/scripts/count_parquet_rows.py \
+        --paths "${BRONZE_PATH}" \
+        | tail -n 1)
+
+        ROWS_OUTPUT=$(python /opt/data-platform/scripts/count_parquet_rows.py \
+        --paths "${SILVER_PATH}" \
+        | tail -n 1)
+
+        ROWS_REJECTED=$((ROWS_INPUT - ROWS_OUTPUT))
+
+        python /opt/data-platform/scripts/pipeline_metrics.py \
+        --pipeline-name "gharchive_bronze_to_silver" \
+        --layer-from "bronze" \
+        --layer-to "silver" \
+        --status "success" \
+        --data-date "2025-01-01" \
+        --rows-input "${ROWS_INPUT}" \
+        --rows-output "${ROWS_OUTPUT}" \
+        --rows-rejected "${ROWS_REJECTED}" \
+        --dataset-count "1"
+        """,
+    )
+
+    validate_bronze_input >> bronze_to_silver_spark >> validate_silver_output >> record_pipeline_metrics
