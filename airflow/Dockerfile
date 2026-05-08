@@ -12,4 +12,10 @@ ENV PATH="${JAVA_HOME}/bin:${PATH}"
 
 USER airflow
 
-RUN pip install --no-cache-dir pyspark==3.5.3
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+COPY --chown=airflow:root pyproject.toml uv.lock /tmp/airflow-deps/
+
+WORKDIR /tmp/airflow-deps
+
+RUN uv sync --frozen --no-dev --system --no-install-project
